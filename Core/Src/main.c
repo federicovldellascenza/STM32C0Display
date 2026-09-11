@@ -23,6 +23,7 @@
 /* USER CODE BEGIN Includes */
 
 #include <string.h>
+#include <stdio.h> 
 
 /* USER CODE END Includes */
 
@@ -48,7 +49,7 @@ I2C_HandleTypeDef hi2c1;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-
+#define SSD1306_ADDR (0x3C << 1) // Indirizzo I2C 0x3C shiftato
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -72,7 +73,42 @@ static void MX_USART2_UART_Init(void);
 int main(void)
 {
   /* USER CODE BEGIN 1 */
+  void SSD1306_Init_And_Fill(void) {
+    // 1. Sequenza di inizializzazione corretta per 128x64
+    uint8_t init_cmds[] = {
+        0x00,       // Byte di controllo: seguela di comandi
+        0xAE,       // Display OFF
+        0x20, 0x00, // IMPORTANTE: Memory Addressing Mode -> 0x00 = Horizontal Mode
+        0x21, 0, 127,// Column Address: da 0 a 127
+        0x22, 0, 7,  // Page Address: da 0 a 7 (64 pixel / 8 = 8 pagine)
+        0xA8, 0x3F, // Multiplex Ratio (1/64)
+        0xD3, 0x00, // Display Offset = 0
+        0x40,       // Display Start Line = 0
+        0x8D, 0x14, // Enable Charge Pump
+        0xA1,       // Segment Remap (orientamento H)
+        0xC8,       // COM Output Scan Direction (orientamento V)
+        0xDA, 0x12, // COM Pins Hardware Configuration
+        0x81, 0xCF, // Contrasto
+        0xD9, 0xF1, // Pre-charge Period
+        0xDB, 0x40, // VCOMH Deselect Level
+        0xA4,       // Entire Display ON (rispetta il contenuto della RAM)
+        0xA6,       // Modalità normale (non invertita)
+        0xAF        // Display ON
+    };
 
+    HAL_I2C_Master_Transmit(&hi2c1, SSD1306_ADDR, init_cmds, sizeof(init_cmds), HAL_MAX_DELAY);
+
+    // 2. Prepariamo un buffer per accendere tutti i 1024 byte di RAM (128x64 pixel)
+    uint8_t display_buffer[1025];
+    display_buffer[0] = 0x40; // Byte di controllo: dati per la RAM grafici
+
+    for (int i = 1; i <= 1024; i++) {
+        display_buffer[i] = 0xFF; // Tutti i pixel ACCESI
+    }
+
+    // 3. Inviamo l'intero buffer via I2C
+    HAL_I2C_Master_Transmit(&hi2c1, SSD1306_ADDR, display_buffer, sizeof(display_buffer), HAL_MAX_DELAY);
+  }
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -96,14 +132,32 @@ int main(void)
   MX_I2C1_Init();
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
-
+  
   char msg[] = "Hello, Wokwi!\r\n";
   HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
+
+  SSD1306_Init_And_Fill();
 
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+
+  char msg_addr[64];
+  HAL_UART_Transmit(&huart2, (uint8_t*)"Scansione I2C...\r\n", 18, HAL_MAX_DELAY);
+
+  for (uint8_t addr = 1; addr < 128; addr++)
+  {
+    if (HAL_I2C_IsDeviceReady(&hi2c1, (uint16_t)(addr << 1), 2, 10) == HAL_OK)
+    {
+      sprintf(msg_addr, "Dispositivo trovato: 0x%02X\r\n", addr);
+      HAL_UART_Transmit(&huart2, (uint8_t*)msg_addr, strlen(msg_addr), HAL_MAX_DELAY);
+    }
+  }
+
+  HAL_UART_Transmit(&huart2, (uint8_t*)"Scansione completata.\r\n", 23, HAL_MAX_DELAY);
+
+
   while (1)
   {
     /* USER CODE END WHILE */

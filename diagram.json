@@ -6,14 +6,25 @@
     {
       "type": "board-st-nucleo-c031c6",
       "id": "nucleo",
-      "top": -37.71,
+      "top": 0,
+      "left": 0,
+      "attrs": {}
+    },
+    {
+      "type": "board-ssd1306",
+      "id": "display-oled",
+      "top": -100,
       "left": -264.45,
       "attrs": {}
     }
   ],
   "connections": [
     [ "$serialMonitor:TX", "nucleo:PA3", "", [] ],
-    [ "$serialMonitor:RX", "nucleo:PA2", "", [] ]
+    [ "$serialMonitor:RX", "nucleo:PA2", "", [] ],
+    [ "nucleo:5V", "display-oled:VCC", "red", [] ],
+    [ "nucleo:GND", "display-oled:GND", "black", [] ],
+    [ "nucleo:PB8", "display-oled:SCL", "blue", [] ],
+    [ "nucleo:PB9", "display-oled:SDA", "green", [] ]
   ],
   "dependencies": {}
 }
